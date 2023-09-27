@@ -6,7 +6,7 @@ find_next_available_ip() {
     local end_ip="$2"
     
     # Get the load balancer IPs from the command
-    load_balancer_ips=$(sudo k3s kubectl get svc -A | grep LoadBalancer | awk '{print $5}')
+    load_balancer_ips=$(sudo k3s kubectl get svc -A | grep LoadBalancer | awk '{print $4}')
     
     # Loop through the range of IPs and find the first available IP
     for ip in $(seq -f "%g" $(echo "$start_ip" | cut -d'.' -f4) $(echo "$end_ip" | cut -d'.' -f4)); do
