@@ -1,30 +1,41 @@
 #!/bin/bash
 
-# Get a list of LoadBalancer IPs from k3s kubectl
-ips=$(sudo k3s kubectl get svc -A | grep LoadBalancer | awk '{print $5}')
+# Run the command and store the output in a variable
+svc_output=$(sudo k3s kubectl get svc -A)
 
-# Function to extract the last octet of an IP address
-get_last_octet() {
-    echo "$1" | awk -F. '{print $4}'
-}
+# Extract the list of IPs from the output
+ip_list=$(echo "$svc_output" | grep LoadBalancer | awk '{print $5}')
 
-# Initialize variables to keep track of the largest IP and its last octet
-largest_ip=""
-largest_octet=0
+# Convert the list of IPs to an array
+IFS=$'\n' read -r -a ips <<< "$ip_list"
 
-# Iterate through the list of IPs to find the largest one
-for ip in $ips; do
-    octet=$(get_last_octet "$ip")
-    if [ "$octet" -gt "$largest_octet" ]; then
-        largest_ip="$ip"
-        largest_octet="$octet"
-    fi
+# Sort the IPs
+sorted_ips=($(printf '%s\n' "${ips[@]}" | sort -t . -k 1,1n -k 2,2n -k 3,3n -k 4,4n))
+
+# Find the next available IP
+next_ip=""
+previous_ip=""
+
+for ((i = 0; i < ${#sorted_ips[@]}; i++)); do
+  current_ip="${sorted_ips[$i]}"
+  IFS=. read -ra current_ip_parts <<< "$current_ip"
+
+  # Calculate the expected next IP
+  expected_next_octet=$(( ${current_ip_parts[3]} + 1 ))
+  expected_next_ip="${current_ip_parts[0]}.${current_ip_parts[1]}.${current_ip_parts[2]}.$expected_next_octet"
+
+  if [ "$expected_next_ip" != "${sorted_ips[$((i + 1))]}" ]; then
+    next_ip="$expected_next_ip"
+    break
+  fi
 done
 
-# Increment the last octet of the largest IP by 1
-next_octet=$((largest_octet + 1))
-
-# Reconstruct the next IP address with the incremented octet
-next_ip=$(echo "$largest_ip" | awk -F. -v var="$next_octet" '{$4 = var; print}' OFS='.')
+if [ -z "$next_ip" ]; then
+  # No available IP found, so use the largest IP
+  largest_ip="${sorted_ips[-1]}"
+  IFS=. read -ra largest_ip_parts <<< "$largest_ip"
+  next_octet=$(( ${largest_ip_parts[3]} + 1 ))
+  next_ip="${largest_ip_parts[0]}.${largest_ip_parts[1]}.${largest_ip_parts[2]}.$next_octet"
+fi
 
 echo "Next available IP: $next_ip"
