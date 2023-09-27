@@ -4,7 +4,7 @@ list_apps=false
 
 while [[ "$#" -gt 0 ]]; do
   case $1 in
-    --list-apps)
+    list-apps)
       list_apps=true
       shift
       ;;
