@@ -37,11 +37,11 @@ done | sort))
 for item in "${sorted_smb_shares[@]}"; do
     id="${item%%:*}"
     path="${item#*:}"
-    echo "ID: $id"
-    echo "Path: $path"
+    echo "SMB Share ID: $id"
+    echo "SMB Share path: $path"
 
     # Ask the user for input
-    read -p "Do you want to run the command for this ID? (y/n): " user_input
+    read -p "Do you want to update this smb share auxillary params? (y/n): " user_input
 
     if [ "$user_input" == "y" ]; then
 
