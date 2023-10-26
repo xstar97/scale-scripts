@@ -13,21 +13,32 @@ AUTH_TOKEN="Bearer CHANGE_ME"
 # not root or admin!
 SMB_USER="CHANGE_ME"
 
-# Aux param perms | leave default
+# Aux param perms
 AUX_USER=apps
 AUX_GROUP=apps
 
-# Make the API request using cURL and extract the CSV list
+# Make the API request using cURL and extract the JSON array
 response=$(curl -X 'GET' "${BASE_URL}/api/v2.0/sharing/smb" -H 'accept: application/json' -H "Authorization: ${AUTH_TOKEN}")
-output=$(echo "$response" | jq -r '.[] | "\(.id),\(.path_local)"')
 
-# Loop through the CSV list
-IFS=$'\n' read -ra csv_values <<< "$output"
-completed="no"
-for value in "${csv_values[@]}"; do
-    IFS=',' read -r id path_local <<< "$value"
+# Parse the JSON array and extract "id" and "path" values into an associative array
+declare -A smb_shares
+while IFS= read -r line; do
+    id=$(jq -r '.id' <<< "$line")
+    path=$(jq -r '.path' <<< "$line")
+    smb_shares["$id"]=$path
+done <<< "$(echo "$response" | jq -c '.[]')"
+
+# Sort the associative array by id
+sorted_smb_shares=($(for id in "${!smb_shares[@]}"; do
+  echo "$id:${smb_shares[$id]}"
+done | sort))
+
+# Loop through the sorted list
+for item in "${sorted_smb_shares[@]}"; do
+    id="${item%%:*}"
+    path="${item#*:}"
     echo "ID: $id"
-    echo "Update this smb share's $path_local Auxillary params?"
+    echo "Path: $path"
 
     # Ask the user for input
     read -p "Do you want to run the command for this ID? (y/n): " user_input
@@ -36,16 +47,11 @@ for value in "${csv_values[@]}"; do
 
         # Construct and run the cURL command to update the SMB share parameters
         curl -X PUT "${BASE_URL}/api/v2.0/sharing/smb/id/$id" \
-            -H 'accept: application/json' \
+            -H 'accept: application.json' \
             -H "Authorization: $AUTH_TOKEN" \
             -H 'Content-Type: application/json' \
             --data "{\"auxsmbconf\": \"force user=$AUX_USER\nforce group=$AUX_GROUP\nvalid users=$SMB_USER\"}" > /dev/null 2>&1
-        completed="yes"
     fi
 done
 
-if [ "$completed" == "yes" ]; then
-    echo -e "\nScript completed successfully."
-else
-    echo -e "\nScript aborted."
-fi
+echo "Script completed."
