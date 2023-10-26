@@ -51,6 +51,7 @@ for item in "${sorted_smb_shares[@]}"; do
             -H "Authorization: $AUTH_TOKEN" \
             -H 'Content-Type: application/json' \
             --data "{\"auxsmbconf\": \"force user=$AUX_USER\nforce group=$AUX_GROUP\nvalid users=$SMB_USER\"}" > /dev/null 2>&1
+       echo "smb share: $path was updated."
     fi
 done
 
