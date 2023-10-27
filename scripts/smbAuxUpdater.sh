@@ -17,37 +17,37 @@ SMB_USER="CHANGE_ME"
 AUX_USER=apps
 AUX_GROUP=apps
 
+# Function to show usage and exit
+show_usage() {
+    echo "Usage: $0 [-url <URL>] [-auth <AUTH_TOKEN>] [-smb_user <SMB_USER>] [-aux_user <AUX_USER>] [-aux_group <AUX_GROUP>]"
+    exit 1
+}
+
 # Parse command line arguments
-while [[ $# -gt 0 ]]; do
-    key="$1"
-    case $key in
-        --url)
+while [ "$#" -gt 0 ]; do
+    case $1 in
+        -url)
             BASE_URL="$2"
-            shift
-            shift
+            shift 2
             ;;
-        --auth)
+        -auth)
             AUTH_TOKEN="$2"
-            shift
-            shift
+            shift 2
             ;;
-        --smb_user)
+        -smb_user)
             SMB_USER="$2"
-            shift
-            shift
+            shift 2
             ;;
-        --aux_user)
+        -aux_user)
             AUX_USER="$2"
-            shift
-            shift
+            shift 2
             ;;
-        --aux_group)
+        -aux_group)
             AUX_GROUP="$2"
-            shift
-            shift
+            shift 2
             ;;
         *)
-            shift
+            show_usage
             ;;
     esac
 done
