@@ -25,7 +25,7 @@ wget https://raw.githubusercontent.com/xstar97/scale-scripts/main/scripts/smbAux
 edit the script and change some values that say CHANGE_ME.
 - BASE_URL
 - AUTH_TOKEN
-- SMB_USER
+- SMB_USERS
 
 ```shell
 nano smbAuxUpdater.sh
