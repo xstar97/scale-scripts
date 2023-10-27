@@ -17,41 +17,6 @@ SMB_USER="CHANGE_ME"
 AUX_USER=apps
 AUX_GROUP=apps
 
-# Function to show usage and exit
-show_usage() {
-    echo "Usage: $0 [-url <URL>] [-auth <AUTH_TOKEN>] [-smb_user <SMB_USER>] [-aux_user <AUX_USER>] [-aux_group <AUX_GROUP>]"
-    exit 1
-}
-
-# Parse command line arguments
-while [ "$#" -gt 0 ]; do
-    case $1 in
-        -url)
-            BASE_URL="$2"
-            shift 2
-            ;;
-        -auth)
-            AUTH_TOKEN="$2"
-            shift 2
-            ;;
-        -smb_user)
-            SMB_USER="$2"
-            shift 2
-            ;;
-        -aux_user)
-            AUX_USER="$2"
-            shift 2
-            ;;
-        -aux_group)
-            AUX_GROUP="$2"
-            shift 2
-            ;;
-        *)
-            show_usage
-            ;;
-    esac
-done
-
 # Make the API request using cURL and extract the JSON array
 response=$(curl -X 'GET' "${BASE_URL}/api/v2.0/sharing/smb" -H 'accept: application/json' -H "Authorization: ${AUTH_TOKEN}")
 
