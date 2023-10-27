@@ -8,10 +8,11 @@ BASE_URL="http://localhost:80"
 # go to scale's /ui/apikeys and create an api key
 AUTH_TOKEN="Bearer CHANGE_ME"
 
-# Define the SMB_USER
+# Define the SMB users
 # the username with samba auth
 # not root or admin!
-SMB_USER="CHANGE_ME"
+# comma separated user list
+SMB_USERS="CHANGE_ME"
 
 # Aux param perms
 AUX_USER=apps
@@ -50,7 +51,7 @@ for item in "${sorted_smb_shares[@]}"; do
             -H 'accept: application.json' \
             -H "Authorization: $AUTH_TOKEN" \
             -H 'Content-Type: application/json' \
-            --data "{\"auxsmbconf\": \"force user=$AUX_USER\nforce group=$AUX_GROUP\nvalid users=$SMB_USER\"}" > /dev/null 2>&1
+            --data "{\"auxsmbconf\": \"force user=$AUX_USER\nforce group=$AUX_GROUP\nvalid users=$SMB_USERS\"}" > /dev/null 2>&1
        echo "smb share: $path was updated."
     fi
 done
