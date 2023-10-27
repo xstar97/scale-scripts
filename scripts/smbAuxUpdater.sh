@@ -17,6 +17,41 @@ SMB_USER="CHANGE_ME"
 AUX_USER=apps
 AUX_GROUP=apps
 
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    key="$1"
+    case $key in
+        --url)
+            BASE_URL="$2"
+            shift
+            shift
+            ;;
+        --auth)
+            AUTH_TOKEN="$2"
+            shift
+            shift
+            ;;
+        --smb_user)
+            SMB_USER="$2"
+            shift
+            shift
+            ;;
+        --aux_user)
+            AUX_USER="$2"
+            shift
+            shift
+            ;;
+        --aux_group)
+            AUX_GROUP="$2"
+            shift
+            shift
+            ;;
+        *)
+            shift
+            ;;
+    esac
+done
+
 # Make the API request using cURL and extract the JSON array
 response=$(curl -X 'GET' "${BASE_URL}/api/v2.0/sharing/smb" -H 'accept: application/json' -H "Authorization: ${AUTH_TOKEN}")
 
