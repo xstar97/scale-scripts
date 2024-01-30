@@ -24,6 +24,11 @@ get_ini_value() {
     grep -Po "(?<=${key}=)[^,]*" "${cfgFile}"
 }
 
+get_ini_value_all() {
+    # Extract keys and values from the specified section
+    sed -n '/\[\/Script\/Pal.PalGameWorldSettings\]/,/^\[/p' "${cfgFile}" | grep -Po '(?<=\()[^)]*' | tr ',' '\n' | sed 's/=/=/g'
+}
+
 # Check if the number of arguments is valid for both set and get options
 if [ "$#" -lt 1 ] || [ "$#" -gt 3 ]; then
     echo "Usage:"
@@ -53,11 +58,20 @@ case "$option" in
         fi
         get_ini_value "$1"
         ;;
+    "getall")
+        # No arguments needed for getall option
+        if [ "$#" -ne 0 ]; then
+            echo "Usage for getall option: $0 getall"
+            exit 1
+        fi
+        get_ini_value_all
+        ;;
     *)
         echo "Invalid option: $option"
         echo "Usage:"
         echo "To set a value: $0 set <key> <value>"
         echo "To get a value: $0 get <key>"
+        echo "To get all key-value pairs: $0 getall"
         exit 1
         ;;
 esac
