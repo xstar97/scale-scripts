@@ -1,17 +1,12 @@
 #!/bin/bash
 
-# Default values for config paths, can be overridden
+# Default values for config paths, can be overridden by environment variables
 configPath="${configPath:-/serverdata/serverfiles/Pal/Saved/Config/LinuxServer/PalWorldSettings.ini}"
 defaultConfigPath="${defaultConfigPath:-/serverdata/serverfiles/DefaultPalWorldSettings.ini}"
 
 if [ ! -f "${configPath}" ]; then
     echo "Config file not found, copying default file..."
     cp -r "${defaultConfigPath}" "${configPath}"
-fi
-
-if [ ! -f "${cfgFile}" ]; then
-    echo "Config file not found, copying default file..."
-    cp -r "${dfCfgFile}" "${cfgFile}"
 fi
 
 set_ini_value() {
@@ -41,12 +36,12 @@ set_ini_value() {
 
     if [ "$special_characters" = true ]; then
         echo "Setting ${key}..."
-        awk -v key="$key" -v value="$value" 'BEGIN {FS=OFS="="} $1 == key {gsub(/[^=]+$/, "\"" value "\"")} 1' "${cfgFile}" > "${cfgFile}.tmp" && mv "${cfgFile}.tmp" "${cfgFile}"
-        echo "Set to $(grep -Po "(?<=${key}=)[^,]*" "${cfgFile}")"
+        awk -v key="$key" -v value="$value" 'BEGIN {FS=OFS="="} $1 == key {gsub(/[^=]+$/, "\"" value "\"")} 1' "${configPath}" > "${configPath}.tmp" && mv "${configPath}.tmp" "${configPath}"
+        echo "Set to $(grep -Po "(?<=${key}=)[^,]*" "${configPath}")"
     else
         echo "Setting ${key}..."
-        sed -i "s|\(${key}=\)[^,]*|\1${value}|g" "${cfgFile}"
-        echo "Set to $(grep -Po "(?<=${key}=)[^,]*" "${cfgFile}")"
+        sed -i "s|\(${key}=\)[^,]*|\1${value}|g" "${configPath}"
+        echo "Set to $(grep -Po "(?<=${key}=)[^,]*" "${configPath}")"
     fi
 }
 
@@ -54,12 +49,12 @@ get_ini_value() {
     local key="${1}"
 
     # Output only the value of the key
-    grep -Po "(?<=${key}=)[^,]*" "${cfgFile}"
+    grep -Po "(?<=${key}=)[^,]*" "${configPath}"
 }
 
 get_ini_value_all() {
     # Extract keys and values from the specified section
-    sed -n '/\[\/Script\/Pal.PalGameWorldSettings\]/,/^\[/p' "${cfgFile}" | grep -Po '(?<=\()[^)]*' | tr ',' '\n' | sed 's/=/=/g'
+    sed -n '/\[\/Script\/Pal.PalGameWorldSettings\]/,/^\[/p' "${configPath}" | grep -Po '(?<=\()[^)]*' | tr ',' '\n' | sed 's/=/=/g'
 }
 
 # Check if the number of arguments is valid for both set and get options
