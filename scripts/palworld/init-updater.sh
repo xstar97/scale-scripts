@@ -1,20 +1,47 @@
 #!/bin/bash
 
-cfgFile=${SERVER_DIR}/Pal/Saved/Config/LinuxServer/PalWorldSettings.ini
+cfgFile="/serverdata/serverfiles/Pal/Saved/Config/LinuxServer/PalWorldSettings.ini"
+dfCfgFile="/serverdata/serverfiles/DefaultPalWorldSettings.ini"
+
+if [ ! -f "${cfgFile}" ]; then
+    echo "Config file not found, copying default file..."
+    cp -r "${dfCfgFile}" "${cfgFile}"
+fi
 
 set_ini_value() {
-    local key="${1}"
-    local value="${2}"
+    local key
+    local value
+    local quote_flag=false
+    local special_characters=false
 
-    # Check if the value contains spaces or special characters
-    if [[ "$value" =~ [[:space:]] || "$value" =~ [^a-zA-Z0-9_.-] ]]; then
+    # Parse flags
+    while getopts ":qsc" opt; do
+        case ${opt} in
+            q) quote_flag=true ;;
+            sc) special_characters=true ;;
+            \?) echo "Invalid option: -$OPTARG" >&2 ;;
+        esac
+    done
+    shift $((OPTIND -1))
+
+    key="${1}"
+    value="${2}"
+
+    # Check if the quote flag is set
+    if [ "$quote_flag" = true ]; then
         # Add quotes around the value
         value="\"$value\""
     fi
 
-    echo "Setting ${key}..."
-    sed -i "s|\(${key}=\)[^,]*|\1${value}|g" "${cfgFile}"
-    echo "Set to $(get_ini_value "$key")"
+    if [ "$special_characters" = true ]; then
+        echo "Setting ${key}..."
+        awk -v key="$key" -v value="$value" 'BEGIN {FS=OFS="="} $1 == key {gsub(/[^=]+$/, "\"" value "\"")} 1' "${cfgFile}" > "${cfgFile}.tmp" && mv "${cfgFile}.tmp" "${cfgFile}"
+        echo "Set to $(grep -Po "(?<=${key}=)[^,]*" "${cfgFile}")"
+    else
+        echo "Setting ${key}..."
+        sed -i "s|\(${key}=\)[^,]*|\1${value}|g" "${cfgFile}"
+        echo "Set to $(grep -Po "(?<=${key}=)[^,]*" "${cfgFile}")"
+    fi
 }
 
 get_ini_value() {
@@ -32,8 +59,9 @@ get_ini_value_all() {
 # Check if the number of arguments is valid for both set and get options
 if [ "$#" -lt 1 ] || [ "$#" -gt 3 ]; then
     echo "Usage:"
-    echo "To set a value: $0 set <key> <value>"
+    echo "To set a value: $0 set <key> <value> [-q] [-sc]"
     echo "To get a value: $0 get <key>"
+    echo "To get all key-value pairs: $0 getall"
     exit 1
 fi
 
@@ -44,8 +72,8 @@ shift
 case "$option" in
     "set")
         # Check if two arguments are provided for set option
-        if [ "$#" -ne 2 ]; then
-            echo "Usage for set option: $0 set <key> <value>"
+        if [ "$#" -lt 2 ]; then
+            echo "Usage for set option: $0 set <key> <value> [-q] [-sc]"
             exit 1
         fi
         set_ini_value "$@"
@@ -69,7 +97,7 @@ case "$option" in
     *)
         echo "Invalid option: $option"
         echo "Usage:"
-        echo "To set a value: $0 set <key> <value>"
+        echo "To set a value: $0 set <key> <value> [-q] [-sc]"
         echo "To get a value: $0 get <key>"
         echo "To get all key-value pairs: $0 getall"
         exit 1
