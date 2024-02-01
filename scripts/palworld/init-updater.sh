@@ -16,7 +16,7 @@ set_ini_value() {
     local special_characters_flag=false
 
     # Parse flags
-    while getopts ":qsc" opt; do
+    while getopts "qsc" opt; do
         case ${opt} in
             q) quote_flag=true ;;
             s) special_characters_flag=true ;;
