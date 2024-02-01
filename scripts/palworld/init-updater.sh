@@ -13,13 +13,13 @@ set_ini_value() {
     local key
     local value
     local quote_flag=false
-    local special_characters=false
+    local special_characters_flag=false
 
     # Parse flags
     while getopts ":qsc" opt; do
         case ${opt} in
             q) quote_flag=true ;;
-            sc) special_characters=true ;;
+            s) special_characters_flag=true ;;
             \?) echo "Invalid option: -$OPTARG" >&2 ;;
         esac
     done
@@ -29,12 +29,12 @@ set_ini_value() {
     value="${2}"
 
     # Check if the quote flag is set
-    if [ "$quote_flag" = true ]; then
+    if [ "$quote_flag" = "true" ]; then
         # Add quotes around the value
         value="\"$value\""
     fi
 
-    if [ "$special_characters" = true ]; then
+    if [ "$special_characters_flag" = "true" ]; then
         echo "Setting ${key}..."
         awk -v key="$key" -v value="$value" 'BEGIN {FS=OFS="="} $1 == key {gsub(/[^=]+$/, "\"" value "\"")} 1' "${configPath}" > "${configPath}.tmp" && mv "${configPath}.tmp" "${configPath}"
         echo "Set to $(grep -Po "(?<=${key}=)[^,]*" "${configPath}")"
