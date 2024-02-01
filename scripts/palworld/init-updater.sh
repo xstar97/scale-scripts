@@ -1,68 +1,39 @@
 #!/bin/bash
 
-# Default values for config paths, can be overridden by environment variables
-configPath="${configPath:-/serverdata/serverfiles/Pal/Saved/Config/LinuxServer/PalWorldSettings.ini}"
-defaultConfigPath="${defaultConfigPath:-/serverdata/serverfiles/DefaultPalWorldSettings.ini}"
-
-if [ ! -f "${configPath}" ]; then
-    echo "Config file not found, copying default file..."
-    cp -r "${defaultConfigPath}" "${configPath}"
-fi
+cfgFile="${cfgFile:-/serverdata/serverfiles/Pal/Saved/Config/LinuxServer/PalWorldSettings.ini}"
 
 set_ini_value() {
-    local key
-    local value
-    local quote_flag=false
-    local special_characters_flag=false
+    local key="${1}"
+    local value="${2}"
 
-    # Parse flags
-    while getopts "qsc" opt; do
-        case ${opt} in
-            q) quote_flag=true ;;
-            s) special_characters_flag=true ;;
-            \?) echo "Invalid option: -$OPTARG" >&2 ;;
-        esac
-    done
-    shift $((OPTIND -1))
-
-    key="${1}"
-    value="${2}"
-
-    # Check if the quote flag is set
-    if [ "$quote_flag" = "true" ]; then
+    # Check if the value contains spaces or special characters
+    if [[ "$value" =~ [[:space:]] || "$value" =~ [^a-zA-Z0-9_.-] ]]; then
         # Add quotes around the value
         value="\"$value\""
     fi
 
-    if [ "$special_characters_flag" = "true" ]; then
-        echo "Setting ${key}..."
-        awk -v key="$key" -v value="$value" 'BEGIN {FS=OFS="="} $1 == key {gsub(/[^=]+$/, "\"" value "\"")} 1' "${configPath}" > "${configPath}.tmp" && mv "${configPath}.tmp" "${configPath}"
-        echo "Set to $(grep -Po "(?<=${key}=)[^,]*" "${configPath}")"
-    else
-        echo "Setting ${key}..."
-        sed -i "s|\(${key}=\)[^,]*|\1${value}|g" "${configPath}"
-        echo "Set to $(grep -Po "(?<=${key}=)[^,]*" "${configPath}")"
-    fi
+    echo "Setting ${key}..."
+    sed -i "s|\(${key}=\)[^,]*|\1${value}|g" "${cfgFile}"
+    echo "Set to $(get_ini_value "$key")"
 }
 
 get_ini_value() {
     local key="${1}"
 
     # Output only the value of the key
-    grep -Po "(?<=${key}=)[^,]*" "${configPath}"
+    grep -Po "(?<=${key}=)[^,]*" "${cfgFile}"
 }
 
 get_ini_value_all() {
     # Extract keys and values from the specified section
-    sed -n '/\[\/Script\/Pal.PalGameWorldSettings\]/,/^\[/p' "${configPath}" | grep -Po '(?<=\()[^)]*' | tr ',' '\n' | sed 's/=/=/g'
+    sed -n '/\[\/Script\/Pal.PalGameWorldSettings\]/,/^\[/p' "${cfgFile}" | grep -Po '(?<=\()[^)]*' | tr ',' '\n' | sed 's/=/=/g'
 }
 
 # Check if the number of arguments is valid for both set and get options
 if [ "$#" -lt 1 ] || [ "$#" -gt 3 ]; then
     echo "Usage:"
-    echo "To set a value: $0 set <key> <value> [-q] [-sc]"
+    echo "To set a value: $0 set <key> <value>"
     echo "To get a value: $0 get <key>"
-    echo "To get all key-value pairs: $0 getall"
     exit 1
 fi
 
@@ -73,8 +44,8 @@ shift
 case "$option" in
     "set")
         # Check if two arguments are provided for set option
-        if [ "$#" -lt 2 ]; then
-            echo "Usage for set option: $0 set <key> <value> [-q] [-sc]"
+        if [ "$#" -ne 2 ]; then
+            echo "Usage for set option: $0 set <key> <value>"
             exit 1
         fi
         set_ini_value "$@"
@@ -98,7 +69,7 @@ case "$option" in
     *)
         echo "Invalid option: $option"
         echo "Usage:"
-        echo "To set a value: $0 set <key> <value> [-q] [-sc]"
+        echo "To set a value: $0 set <key> <value>"
         echo "To get a value: $0 get <key>"
         echo "To get all key-value pairs: $0 getall"
         exit 1
