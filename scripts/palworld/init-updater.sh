@@ -1,7 +1,13 @@
 #!/bin/bash
 
-cfgFile="/serverdata/serverfiles/Pal/Saved/Config/LinuxServer/PalWorldSettings.ini"
-dfCfgFile="/serverdata/serverfiles/DefaultPalWorldSettings.ini"
+# Default values for config paths, can be overridden
+configPath="${configPath:-/serverdata/serverfiles/Pal/Saved/Config/LinuxServer/PalWorldSettings.ini}"
+defaultConfigPath="${defaultConfigPath:-/serverdata/serverfiles/DefaultPalWorldSettings.ini}"
+
+if [ ! -f "${configPath}" ]; then
+    echo "Config file not found, copying default file..."
+    cp -r "${defaultConfigPath}" "${configPath}"
+fi
 
 if [ ! -f "${cfgFile}" ]; then
     echo "Config file not found, copying default file..."
