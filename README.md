@@ -46,5 +46,5 @@ smbAuxUpdater.sh
 update current charts to the latest trains name.
 
 ```shell
-curl -sSL https://raw.githubusercontent.com/xstar97/scale-scripts/main/scripts/patchTCTrains.sh | bash -s
+curl -sSL https://raw.githubusercontent.com/xstar97/scale-scripts/main/scripts/patchTCTrains.sh | bash --
 ```
