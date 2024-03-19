@@ -11,11 +11,8 @@ update_storage_class(){
     local app_name=$1
     local json=$2
 
-    if ! $dry_run; then
-        cli -c "app chart_release update chart_release=\"$app_name\" values=$json"
-    else
-        echo "Dry run: Not executing the command."
-    fi
+    cli -c "app chart_release update chart_release=\"$app_name\" values=$json"
+    
 }
 update_json_data(){
     local json_key=$1
