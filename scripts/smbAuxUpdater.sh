@@ -1,86 +1,131 @@
 #!/bin/bash
 
-# Define the base URL and PORT, default is 80
-# just change the port # if running on scale, otherwise change to the IP too.
-BASE_URL="http://localhost:80"
+# Default variable for auxiliary SMB configuration
+auxsmbconfuser="force user = apps\nforce group = apps"
 
-# Bearer for token
-# Basic for user auth
-# leave default
-AUTH_TYPE="Bearer"
-# Define the Authorization token/value
-# go to scale's /ui/apikeys and create an api key
-AUTH_VALUE="CHANGE_ME"
+# Function to update auxsmbconf for a specific SMB share
+update_auxsmbconf() {
+    local id=$1
+    local conf=$2
 
-# Define the SMB users
-# the username with samba auth
-# not root or admin!
-# comma separated user list
-SMB_USERS="CHANGE_ME"
+    echo "Updating auxsmbconf for ID: $id..."
+    midclt call sharing.smb.update "$id" "{\"auxsmbconf\": \"$conf\"}"
 
-# Aux param perms
-# default perms
-AUX_USER=apps
-AUX_GROUP=apps
-
-# API routes
-GET_SMB_SHARES_ROUTE="/api/v2.0/sharing/smb"
-UPDATE_SMB_SHARE_ROUTE="$GET_SMB_SHARES_ROUTE/id"
-
-# Function to make the API request using cURL and extract the JSON array
-make_api_request() {
-    curl -X 'GET' "${BASE_URL}${GET_SMB_SHARES_ROUTE}" -H 'accept: application/json' -H "Authorization: $AUTH_TYPE ${AUTH_VALUE}"
+    if [[ $? -eq 0 ]]; then
+        echo "Successfully updated auxsmbconf for ID: $id."
+    else
+        echo "Failed to update auxsmbconf for ID: $id."
+    fi
 }
 
-# Function to update SMB share parameters
-update_smb_share() {
-    local id="$1"
-    local path="$2"
-
-    # Construct and run the cURL command to update the SMB share parameters
-    curl -X PUT "${BASE_URL}${UPDATE_SMB_SHARE_ROUTE}/$id" \
-        -H 'accept: application.json' \
-        -H "Authorization: $AUTH_TYPE $AUTH_VALUE" \
-        -H 'Content-Type: application/json' \
-        --data "{\"auxsmbconf\": \"force user=$AUX_USER\nforce group=$AUX_GROUP\nvalid users=$SMB_USERS\"}" > /dev/null 2>&1
-
-    echo "SMB share: $path was updated."
+# Function to fetch a list of SMB shares and check if an ID exists
+get_share_by_id() {
+    local id=$1
+    midclt call sharing.smb.query | jq -e ".[] | select(.id == $id)" > /dev/null 2>&1
 }
 
-# Function to process SMB shares
-process_smb_shares() {
-    local response="$1"
+# Function to display SMB shares in a simple list format
+display_shares() {
+    midclt call sharing.smb.query | jq -r \
+        '.[] | "\(.id).\n  PATH: \(.path)\n  NAME: \(.name)\n  AUXSMBCONF: \(.auxsmbconf | select(. != "") // "None")\n"'
+}
 
-    # Parse the JSON array and extract "id" and "path" values into an associative array
-    declare -A smb_shares
-    while IFS= read -r line; do
-        id=$(jq -r '.id' <<< "$line")
-        path=$(jq -r '.path' <<< "$line")
-        smb_shares["$id"]=$path
-    done <<< "$(echo "$response" | jq -c '.[]')"
+# Parse command-line flags
+list_shares=false
+remove_aux=false
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --list)
+            list_shares=true
+            shift
+            ;;
+        --id)
+            choice="$2"
+            shift 2
+            ;;
+        --user)
+            if [[ -n "$2" ]]; then
+                auxsmbconfuser="force user = $2\nforce group = $2"
+                shift 2
+            else
+                echo "Error: --user requires a user/group value."
+                exit 1
+            fi
+            ;;
+        --remove-aux)
+            remove_aux=true
+            shift
+            ;;
+        *)
+            echo "Unknown option: $1"
+            exit 1
+            ;;
+    esac
+done
 
-    # Sort the associative array by id
-    sorted_smb_shares=($(for id in "${!smb_shares[@]}"; do
-        echo "$id:${smb_shares[$id]}"
-    done | sort))
+# Always list shares first if --list is specified
+if [[ "$list_shares" == true ]]; then
+    display_shares
+fi
 
-    # Loop through the sorted list
-    for item in "${sorted_smb_shares[@]}"; do
-        id="${item%%:*}"
-        path="${item#*:}"
-        echo "SMB Share ID: $id"
-        echo "SMB Share path: $path"
+# Logic to remove auxsmbconf if --remove-aux is specified
+if [[ "$remove_aux" == true ]]; then
+    if [[ -n "$choice" ]]; then
+        if get_share_by_id "$choice"; then
+            read -p "Are you sure you want to remove auxsmbconf for ID $choice? (y/n): " confirm
+            if [[ "$confirm" =~ ^[Yy]$ ]]; then
+                update_auxsmbconf "$choice" ""
+            else
+                echo "Operation canceled."
+            fi
+        else
+            echo "No SMB share found with ID: $choice."
+        fi
+    else
+        echo "Error: --remove-aux requires --id to specify the share ID."
+    fi
+    exit 0
+fi
 
-        # Ask the user for input
-        read -p "Do you want to update this SMB share auxiliary params? (y/n): " user_input
-
-        if [ "$user_input" == "y" ]; then
-            update_smb_share "$id" "$path"
+# Main logic: either automatic update with --id or interactive prompt
+if [[ -n "$choice" ]]; then
+    if get_share_by_id "$choice"; then
+        if [[ "$remove_aux" == true ]]; then
+            read -p "Are you sure you want to remove auxsmbconf for ID $choice? (y/n): " confirm
+            if [[ "$confirm" =~ ^[Yy]$ ]]; then
+                update_auxsmbconf "$choice" ""
+            else
+                echo "Operation canceled."
+            fi
+        else
+            update_auxsmbconf "$choice" "$auxsmbconfuser"
+        fi
+    else
+        echo "No SMB share found with ID: $choice."
+    fi
+else
+    while true; do
+        display_shares
+        read -p "Enter the ID of the SMB share to update or 'q' to quit: " choice
+        if [[ "$choice" == "q" || "$choice" == "Q" ]]; then
+            echo "Exiting..."
+            exit 0
+        elif [[ "$choice" =~ ^[0-9]+$ ]]; then
+            if get_share_by_id "$choice"; then
+                if [[ "$remove_aux" == true ]]; then
+                    read -p "Are you sure you want to remove auxsmbconf for ID $choice? (y/n): " confirm
+                    if [[ "$confirm" =~ ^[Yy]$ ]]; then
+                        update_auxsmbconf "$choice" ""
+                    else
+                        echo "Operation canceled."
+                    fi
+                else
+                    update_auxsmbconf "$choice" "$auxsmbconfuser"
+                fi
+            else
+                echo "No SMB share found with ID: $choice."
+            fi
+        else
+            echo "Invalid input. Please enter a valid numeric ID or 'q' to quit."
         fi
     done
-}
-
-# Main execution
-response=$(make_api_request)
-process_smb_shares "$response"
-echo "Script completed."
