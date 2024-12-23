@@ -70,6 +70,7 @@ fi
 if [[ "$remove_aux" == true ]]; then
     if [[ -n "$choice" ]]; then
         if get_share_by_id "$choice"; then
+            # Ensure the confirmation only happens once
             read -r -p "Are you sure you want to remove auxsmbconf for ID $choice? (y/n): " confirm
             if [[ "$confirm" =~ ^[Yy]$ ]]; then
                 update_auxsmbconf "$choice" ""
