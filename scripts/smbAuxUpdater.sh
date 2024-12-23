@@ -9,9 +9,7 @@ update_auxsmbconf() {
     local conf=$2
 
     echo "Updating auxsmbconf for ID: $id..."
-    midclt call sharing.smb.update "$id" "{\"auxsmbconf\": \"$conf\"}"
-
-    if [[ $? -eq 0 ]]; then
+    if midclt call sharing.smb.update "$id" "{\"auxsmbconf\": \"$conf\"}"; then
         echo "Successfully updated auxsmbconf for ID: $id."
     else
         echo "Failed to update auxsmbconf for ID: $id."
@@ -72,7 +70,7 @@ fi
 if [[ "$remove_aux" == true ]]; then
     if [[ -n "$choice" ]]; then
         if get_share_by_id "$choice"; then
-            read -p "Are you sure you want to remove auxsmbconf for ID $choice? (y/n): " confirm
+            read -r -p "Are you sure you want to remove auxsmbconf for ID $choice? (y/n): " confirm
             if [[ "$confirm" =~ ^[Yy]$ ]]; then
                 update_auxsmbconf "$choice" ""
             else
@@ -91,7 +89,7 @@ fi
 if [[ -n "$choice" ]]; then
     if get_share_by_id "$choice"; then
         if [[ "$remove_aux" == true ]]; then
-            read -p "Are you sure you want to remove auxsmbconf for ID $choice? (y/n): " confirm
+            read -r -p "Are you sure you want to remove auxsmbconf for ID $choice? (y/n): " confirm
             if [[ "$confirm" =~ ^[Yy]$ ]]; then
                 update_auxsmbconf "$choice" ""
             else
@@ -106,14 +104,14 @@ if [[ -n "$choice" ]]; then
 else
     while true; do
         display_shares
-        read -p "Enter the ID of the SMB share to update or 'q' to quit: " choice
+        read -r -p "Enter the ID of the SMB share to update or 'q' to quit: " choice
         if [[ "$choice" == "q" || "$choice" == "Q" ]]; then
             echo "Exiting..."
             exit 0
         elif [[ "$choice" =~ ^[0-9]+$ ]]; then
             if get_share_by_id "$choice"; then
                 if [[ "$remove_aux" == true ]]; then
-                    read -p "Are you sure you want to remove auxsmbconf for ID $choice? (y/n): " confirm
+                    read -r -p "Are you sure you want to remove auxsmbconf for ID $choice? (y/n): " confirm
                     if [[ "$confirm" =~ ^[Yy]$ ]]; then
                         update_auxsmbconf "$choice" ""
                     else
@@ -129,3 +127,4 @@ else
             echo "Invalid input. Please enter a valid numeric ID or 'q' to quit."
         fi
     done
+fi
