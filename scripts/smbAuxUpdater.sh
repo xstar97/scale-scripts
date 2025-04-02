@@ -69,6 +69,7 @@ done
 # Always list shares first if --list is specified
 if [[ "$list_shares" == true ]]; then
     display_shares
+    exit 0  # Ensure it exits after listing
 fi
 
 # Function to handle removal with optional confirmation
