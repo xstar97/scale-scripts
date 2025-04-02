@@ -16,23 +16,31 @@ update_auxsmbconf() {
     fi
 }
 
-# Function to fetch a list of SMB shares and check if an ID exists
-get_share_by_id() {
-    local id="$1"
-    midclt call sharing.smb.query | jq -e ".[] | select(.id == $id)" > /dev/null 2>&1
+# Function to fetch SMB shares as an array
+get_shares_list() {
+    midclt call sharing.smb.query | jq -r '.[] | "\(.id):\(.name)"'
 }
 
-# Function to display SMB shares in a simple list format
-display_shares() {
-    midclt call sharing.smb.query | jq -r \
-        '.[] | "\(.id).\n  PATH: \(.path)\n  NAME: \(.name)\n  AUXSMBCONF: \(.auxsmbconf // "None")\n"'
+# Function to handle removal of auxsmbconf
+remove_auxsmbconf() {
+    local id="$1"
+    if [[ "$auto_yes" == true ]]; then
+        update_auxsmbconf "$id" ""
+    else
+        read -r -p "Are you sure you want to remove auxsmbconf for ID $id? (y/n): " confirm
+        if [[ "$confirm" =~ ^[Yy]$ ]]; then
+            update_auxsmbconf "$id" ""
+        else
+            echo "Operation canceled."
+        fi
+    fi
 }
 
 # Parse command-line flags
 list_shares=false
+manual_id=""
 remove_aux=false
 auto_yes=false
-choice=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -40,7 +48,7 @@ while [[ $# -gt 0 ]]; do
             list_shares=true
             ;;
         --id)
-            choice="$2"
+            manual_id="$2"
             shift
             ;;
         --user)
@@ -66,73 +74,47 @@ while [[ $# -gt 0 ]]; do
     shift
 done
 
-# Always list shares first if --list is specified
+# If --list is specified, display SMB shares and exit
 if [[ "$list_shares" == true ]]; then
-    display_shares
-    exit 0  # Ensure it exits after listing
+    get_shares_list
+    exit 0
 fi
 
-# Function to handle removal with optional confirmation
-remove_auxsmbconf() {
-    local id="$1"
-    if [[ "$auto_yes" == true ]]; then
-        update_auxsmbconf "$id" ""
-    else
-        read -r -p "Are you sure you want to remove auxsmbconf for ID $id? (y/n): " confirm
-        if [[ "$confirm" =~ ^[Yy]$ ]]; then
-            update_auxsmbconf "$id" ""
+# If --id is specified, update or remove the specific share
+if [[ -n "$manual_id" ]]; then
+    if midclt call sharing.smb.query | jq -e ".[] | select(.id == $manual_id)" > /dev/null 2>&1; then
+        if [[ "$remove_aux" == true ]]; then
+            remove_auxsmbconf "$manual_id"
         else
-            echo "Operation canceled."
-        fi
-    fi
-}
-
-# If --remove-aux is specified, ensure an ID is provided
-if [[ "$remove_aux" == true ]]; then
-    if [[ -n "$choice" ]]; then
-        if get_share_by_id "$choice"; then
-            remove_auxsmbconf "$choice"
-        else
-            echo "No SMB share found with ID: $choice."
+            update_auxsmbconf "$manual_id" "$auxsmbconfuser"
         fi
     else
-        echo "Error: --remove-aux requires --id to specify the share ID."
+        echo "No SMB share found with ID: $manual_id."
     fi
     exit 0
 fi
 
-# If --id is provided, process the update
-if [[ -n "$choice" ]]; then
-    if get_share_by_id "$choice"; then
+# Display available SMB shares using select
+mapfile -t shares < <(get_shares_list)
+if [[ ${#shares[@]} -eq 0 ]]; then
+    echo "No SMB shares found."
+    exit 1
+fi
+
+echo "Select an SMB share to update:"
+select share in "${shares[@]}" "Quit"; do
+    if [[ "$share" == "Quit" ]]; then
+        echo "Exiting..."
+        exit 0
+    elif [[ -n "$share" ]]; then
+        choice="${share%%:*}" # Extract the ID from "id:name"
         if [[ "$remove_aux" == true ]]; then
             remove_auxsmbconf "$choice"
         else
             update_auxsmbconf "$choice" "$auxsmbconfuser"
         fi
-    else
-        echo "No SMB share found with ID: $choice."
-    fi
-    exit 0
-fi
-
-# Interactive mode only if no --id is provided
-while true; do
-    display_shares
-    read -r -p "Enter the ID of the SMB share to update or 'q' to quit: " choice
-    if [[ "$choice" == "q" || "$choice" == "Q" ]]; then
-        echo "Exiting..."
         exit 0
-    elif [[ "$choice" =~ ^[0-9]+$ ]]; then
-        if get_share_by_id "$choice"; then
-            if [[ "$remove_aux" == true ]]; then
-                remove_auxsmbconf "$choice"
-            else
-                update_auxsmbconf "$choice" "$auxsmbconfuser"
-            fi
-        else
-            echo "No SMB share found with ID: $choice."
-        fi
     else
-        echo "Invalid input. Please enter a valid numeric ID or 'q' to quit."
+        echo "Invalid selection. Try again."
     fi
 done
