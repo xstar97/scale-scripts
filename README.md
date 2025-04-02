@@ -18,7 +18,7 @@ curl -sSL https://raw.githubusercontent.com/xstar97/scale-scripts/main/scripts/N
 
 
 ```shell
-curl -sSL https://raw.githubusercontent.com/xstar97/scale-scripts/refs/heads/main/scripts/smbAuxUpdater.sh | bash --
+bash -i <(curl -sSL https://raw.githubusercontent.com/xstar97/scale-scripts/refs/heads/main/scripts/smbAuxUpdater.sh)
 ```
 
 ## Patch TrueCharts Trains
